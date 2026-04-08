@@ -30,6 +30,10 @@ export function Dashboard() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<DashTab>(() => {
+    // Read from URL hash first, then localStorage
+    const hash = window.location.hash.replace('#', '') as DashTab;
+    const validTabs: DashTab[] = ['home', 'analytics', 'transactions', 'credit-cards', 'sip', 'profile'];
+    if (hash && validTabs.includes(hash)) return hash;
     const saved = localStorage.getItem(TAB_KEY) as DashTab | null;
     return saved ?? 'home';
   });
@@ -38,8 +42,25 @@ export function Dashboard() {
   const navigate = (tab: string) => {
     setActiveTab(tab as DashTab);
     localStorage.setItem(TAB_KEY, tab);
+    window.history.pushState(null, '', `#${tab}`);
     setSidebarOpen(false);
   };
+
+  // Handle browser back/forward
+  useEffect(() => {
+    const handlePop = () => {
+      const hash = window.location.hash.replace('#', '') as DashTab;
+      const validTabs: DashTab[] = ['home', 'analytics', 'transactions', 'credit-cards', 'sip', 'profile'];
+      if (hash && validTabs.includes(hash)) {
+        setActiveTab(hash);
+        localStorage.setItem(TAB_KEY, hash);
+      }
+    };
+    window.addEventListener('popstate', handlePop);
+    // Set initial hash if missing
+    if (!window.location.hash) window.history.replaceState(null, '', `#${activeTab}`);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
 
   useEffect(() => { if (user) fetchData(); }, [user]);
 
