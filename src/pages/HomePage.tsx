@@ -7,6 +7,7 @@ interface HomePageProps {
     stats: { totalBalance: number; totalIncome: number; totalExpense: number };
     formatCurrency: (n: number) => string;
     onNavigate: (tab: string) => void;
+    onImport: () => void;
 }
 
 const services = [
@@ -18,7 +19,7 @@ const services = [
     { id: 'profile', icon: <Shield className="w-6 h-6" />, title: 'Profile', desc: 'Manage your account & settings', color: '#ec4899', glow: 'rgba(236,72,153,0.3)', bg: 'linear-gradient(135deg, #500724, #1e1e30)' },
 ];
 
-export function HomePage({ transactions, stats, formatCurrency, onNavigate }: HomePageProps) {
+export function HomePage({ transactions, stats, formatCurrency, onNavigate, onImport }: HomePageProps) {
     const { profile } = useAuth();
     const firstName = profile?.full_name?.split(' ')[0] ?? 'there';
     const recentTxns = transactions.slice(0, 4);
@@ -84,7 +85,7 @@ export function HomePage({ transactions, stats, formatCurrency, onNavigate }: Ho
                 <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Quick Access</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {services.map((s, i) => (
-                        <button key={i} onClick={() => onNavigate(s.id)}
+                        <button key={i} onClick={() => s.id === 'import' ? onImport() : onNavigate(s.id)}
                             className="text-left rounded-2xl p-4 border border-white/8 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] group"
                             style={{ background: s.bg, boxShadow: `0 4px 20px rgba(0,0,0,0.2)` }}>
                             <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-all duration-300 group-hover:scale-110"
