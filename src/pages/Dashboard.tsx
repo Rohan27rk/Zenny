@@ -180,7 +180,7 @@ export function Dashboard() {
         <main className="flex-1 p-4 sm:p-6 lg:p-8 relative z-10 overflow-y-auto">
 
           {activeTab === 'home' && (
-            <HomePage transactions={transactions} stats={stats} formatCurrency={formatCurrency} onNavigate={navigate} onImport={() => setIsImportOpen(true)} />
+            <HomePage transactions={transactions} stats={stats} formatCurrency={formatCurrency} onNavigate={navigate} onImport={() => { navigate('transactions'); setIsImportOpen(true); }} />
           )}
 
           {activeTab === 'analytics' && (
