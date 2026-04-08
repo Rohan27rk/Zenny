@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { User, Mail, Phone, Briefcase, Target, Save, Check } from 'lucide-react';
 
@@ -20,6 +20,21 @@ export function ProfilePage() {
         savings_goal_pct: profile?.savings_goal_pct ?? 20,
         currency: profile?.currency ?? 'INR',
     });
+
+    // Keep form in sync if profile reloads (e.g. after save)
+    useEffect(() => {
+        if (profile) {
+            setForm({
+                full_name: profile.full_name ?? '',
+                phone: profile.phone ?? '',
+                date_of_birth: profile.date_of_birth ?? '',
+                occupation: profile.occupation ?? '',
+                monthly_income: profile.monthly_income?.toString() ?? '',
+                savings_goal_pct: profile.savings_goal_pct ?? 20,
+                currency: profile.currency ?? 'INR',
+            });
+        }
+    }, [profile]);
 
     const set = (key: string, val: string | number) => setForm(f => ({ ...f, [key]: val }));
 
@@ -92,7 +107,7 @@ export function ProfilePage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="sm:col-span-2">
                             <label className="block text-xs text-slate-500 mb-1.5">Full Name *</label>
-                            <input className={inputBase} style={inputStyle} placeholder="Your full name"
+                            <input className={inputBase} style={inputStyle} placeholder="Enter your full name"
                                 value={form.full_name} onChange={e => set('full_name', e.target.value)}
                                 onFocus={onFocus} onBlur={onBlur} />
                         </div>

@@ -129,8 +129,8 @@ export function Landing({ onGetStarted }: LandingProps) {
 
             {/* Footer */}
             <footer className="relative z-10 border-t border-white/5 py-6 text-center">
-                <p className="text-slate-600 text-xs">© 2026 Zenny · Built with ❤️ · Your data stays yours</p>
-                <p className="text-slate-700 text-xs mt-1">Crafted by <span className="text-slate-500 font-medium">Rohan Kanegaonkar</span></p>
+                <p className="text-slate-400 text-xs">© 2026 Zenny · Built with ❤️ · Your data stays yours</p>
+                <p className="text-slate-500 text-xs mt-1">Crafted by <span className="text-slate-300 font-medium">Rohan Kanegaonkar</span></p>
             </footer>
         </div>
     );

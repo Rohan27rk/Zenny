@@ -4,8 +4,11 @@
 
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Point the worker to the CDN so Vite doesn't need to bundle it
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Use the bundled worker to avoid CDN fetch issues in production
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/build/pdf.worker.min.mjs',
+    import.meta.url,
+).toString();
 
 export interface ParsedTransaction {
     date: string;       // ISO yyyy-mm-dd
