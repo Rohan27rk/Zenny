@@ -141,8 +141,8 @@ export function ImportPDFModal({ isOpen, onClose, categories, onSuccess }: Impor
                                 {parsing ? (
                                     <div className="flex flex-col items-center gap-3">
                                         <Loader className="w-10 h-10 text-blue-400 animate-spin" />
-                                        <p className="text-slate-300 font-medium">Parsing {fileName}...</p>
-                                        <p className="text-slate-500 text-sm">Extracting transactions from PDF</p>
+                                        <p className="text-slate-300 font-medium">AI is reading {fileName}...</p>
+                                        <p className="text-slate-500 text-sm">Gemini is extracting all transactions</p>
                                     </div>
                                 ) : (
                                     <div className="flex flex-col items-center gap-3">
