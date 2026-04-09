@@ -47,7 +47,7 @@ async function extractText(file: File, password?: string): Promise<string> {
 
 // ── Call Gemini API ───────────────────────────────────────────────────────────
 async function parseWithGemini(rawText: string): Promise<ParsedTransaction[]> {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyA5fQl9M-MlvIu1Br9tPjjMdfjiwcnoVdU';
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCZt_BVHT6of3TCq4up3nr3FQJSjU9Oao8';
     if (!apiKey) throw new Error('Gemini API key not configured');
 
     const prompt = `You are a bank statement parser. Extract ALL transactions from the following bank statement text.
@@ -109,8 +109,71 @@ ${rawText.slice(0, 15000)}`; // Gemini free tier has token limits
         .filter((t: ParsedTransaction) => t.amount > 0);
 }
 
+// ── Regex fallback parser ─────────────────────────────────────────────────────
+function parseWithRegex(text: string): ParsedTransaction[] {
+    const year = (() => {
+        const m = text.match(/\b(20\d{2})\b/g);
+        if (!m) return new Date().getFullYear();
+        const freq: Record<string, number> = {};
+        for (const x of m) freq[x] = (freq[x] || 0) + 1;
+        return parseInt(Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0]);
+    })();
+
+    const results: ParsedTransaction[] = [];
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const amountRe = /\b(\d{1,3}(?:,\d{3})*\.\d{2})\b/g;
+    const shortDateRe = /(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i;
+    const fullDateRe = /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})/;
+    const MONTHS: Record<string, string> = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+
+    let currentDate: string | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        // Check for full date
+        const fd = line.match(fullDateRe);
+        if (fd) { currentDate = `${fd[3]}-${fd[2].padStart(2, '0')}-${fd[1].padStart(2, '0')}`; }
+
+        // Check for short date like "01 Apr"
+        const sd = line.match(shortDateRe);
+        if (sd && line.trim().length <= 10) {
+            currentDate = `${year}-${MONTHS[sd[2].toLowerCase()]}-${sd[1].padStart(2, '0')}`;
+            continue;
+        }
+
+        if (!currentDate) continue;
+
+        const amounts = [...line.matchAll(new RegExp(amountRe.source, 'g'))].map(m => parseFloat(m[0].replace(/,/g, ''))).filter(n => n > 0 && n < 10_000_000);
+        if (amounts.length === 0) continue;
+
+        const amount = amounts[0];
+        const title = line.replace(new RegExp(amountRe.source, 'g'), '').replace(fullDateRe, '').replace(shortDateRe, '').replace(/UPIOUT\/\d+\//gi, '').replace(/UPI IN\/\d+\//gi, '').replace(/\s+/g, ' ').trim().slice(0, 80) || 'Bank Transaction';
+
+        const l = line.toLowerCase();
+        const type: 'income' | 'expense' = (l.includes('upi in') || l.includes('credit') || l.includes('salary') || l.includes('refund') || l.includes('deposit')) ? 'income' : 'expense';
+
+        results.push({ date: currentDate, title, amount, type, notes: 'Imported from PDF' });
+    }
+
+    // Dedupe
+    const seen = new Set<string>();
+    return results.filter(t => {
+        const key = `${t.date}|${t.amount}|${t.title.slice(0, 15)}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
 // ── Main Export ───────────────────────────────────────────────────────────────
 export async function parseBankStatementPDF(file: File, password?: string): Promise<ParsedTransaction[]> {
     const text = await extractText(file, password);
-    return await parseWithGemini(text);
+    try {
+        const aiResults = await parseWithGemini(text);
+        if (aiResults.length > 0) return aiResults;
+    } catch (e: any) {
+        console.warn('Gemini failed, using regex fallback:', e?.message);
+    }
+    return parseWithRegex(text);
 }
