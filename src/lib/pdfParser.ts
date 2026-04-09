@@ -298,6 +298,44 @@ function parseTokenBased(lines: string[], year: number): ParsedTransaction[] {
     return results;
 }
 
+// Strategy D: Axis Bank / short-date format
+// Handles "DD Mon" dates with UPIOUT/UPI IN style transactions
+// Also handles cases where date and transaction are on separate lines
+function parseShortDate(lines: string[], year: number): ParsedTransaction[] {
+    const results: ParsedTransaction[] = [];
+    const amountRe = /\b(\d{1,3}(?:,\d{3})*\.\d{2})\b/g;
+    const shortDateRe = /^(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/i;
+
+    let currentDate: string | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line || shouldSkip(line)) continue;
+
+        // Check if this line is a short date like "01 Apr"
+        const dm = line.match(shortDateRe);
+        if (dm) {
+            currentDate = `${year}-${MONTHS[dm[2].toLowerCase()]}-${dm[1].padStart(2, '0')}`;
+            continue;
+        }
+
+        // If we have a current date, look for transaction lines
+        if (currentDate) {
+            const amounts = [...line.matchAll(new RegExp(amountRe.source, 'g'))].map(m => parseAmount(m[0])).filter(n => n > 0 && n < 10000000);
+            if (amounts.length >= 1) {
+                const amount = amounts[0];
+                let title = line.replace(new RegExp(amountRe.source, 'g'), '').replace(/\s+/g, ' ').trim();
+                title = cleanTitle(title);
+                if (title.length >= 2) {
+                    results.push({ date: currentDate, title, amount, type: guessType(line), notes: 'Imported from PDF' });
+                }
+            }
+        }
+    }
+
+    return results;
+}
+
 // Deduplicate results
 function dedupe(txns: ParsedTransaction[]): ParsedTransaction[] {
     const seen = new Set<string>();
@@ -315,11 +353,20 @@ export async function parseBankStatementPDF(file: File, password?: string): Prom
     const lines = await extractLines(file, password);
     const year = extractYear(lines.join(' '));
 
-    // Try all strategies, use the one with most results
     const stratA = parseLineByLine(lines, year);
     const stratB = parseMultiLine(lines, year);
     const stratC = parseTokenBased(lines, year);
+    const stratD = parseShortDate(lines, year);
 
-    const best = [stratA, stratB, stratC].sort((a, b) => b.length - a.length)[0];
+    // Pick strategy with most results
+    const best = [stratA, stratB, stratC, stratD].sort((a, b) => b.length - a.length)[0];
+
+    // If still nothing, try combining all unique results
+    if (best.length === 0) {
+        const combined = dedupe([...stratA, ...stratB, ...stratC, ...stratD]);
+        return combined;
+    }
+
     return dedupe(best);
 }
+
