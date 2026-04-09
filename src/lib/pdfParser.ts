@@ -47,7 +47,7 @@ async function extractText(file: File, password?: string): Promise<string> {
 
 // ── Call Gemini API ───────────────────────────────────────────────────────────
 async function parseWithGemini(rawText: string): Promise<ParsedTransaction[]> {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyA5fQl9M-MlvIu1Br9tPjjMdfjiwcnoVdU';
     if (!apiKey) throw new Error('Gemini API key not configured');
 
     const prompt = `You are a bank statement parser. Extract ALL transactions from the following bank statement text.
