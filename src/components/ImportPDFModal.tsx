@@ -15,24 +15,26 @@ interface ImportPDFModalProps {
 export function ImportPDFModal({ isOpen, onClose, categories, onSuccess }: ImportPDFModalProps) {
     const { user } = useAuth();
     const fileRef = useRef<HTMLInputElement>(null);
-    const [step, setStep] = useState<'upload' | 'review' | 'done'>('upload');
+    const [step, setStep] = useState<'upload' | 'password' | 'review' | 'done'>('upload');
     const [parsing, setParsing] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [parsed, setParsed] = useState<ParsedTransaction[]>([]);
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [fileName, setFileName] = useState('');
+    const [pendingFile, setPendingFile] = useState<File | null>(null);
+    const [password, setPassword] = useState('');
 
     const defaultCategoryId = (type: 'income' | 'expense') =>
         categories.find(c => c.type === type)?.id ?? '';
 
-    const handleFile = async (file: File) => {
+    const handleFile = async (file: File, pwd?: string) => {
         if (!file.name.endsWith('.pdf')) { setError('Please upload a PDF file.'); return; }
         setError('');
         setParsing(true);
         setFileName(file.name);
         try {
-            const txns = await parseBankStatementPDF(file);
+            const txns = await parseBankStatementPDF(file, pwd);
             if (txns.length === 0) {
                 setError('No transactions found. This PDF format may not be supported yet. Try a different bank statement.');
                 setParsing(false);
@@ -42,10 +44,22 @@ export function ImportPDFModal({ isOpen, onClose, categories, onSuccess }: Impor
             setSelected(new Set(txns.map((_, i) => i)));
             setStep('review');
         } catch (e: any) {
-            setError('Failed to parse PDF: ' + (e?.message ?? 'Unknown error'));
+            const msg: string = e?.message ?? '';
+            if (msg.toLowerCase().includes('password') || msg.toLowerCase().includes('encrypted')) {
+                setPendingFile(file);
+                setPassword('');
+                setStep('password');
+            } else {
+                setError('Failed to parse PDF: ' + msg);
+            }
         } finally {
             setParsing(false);
         }
+    };
+
+    const handlePasswordSubmit = async () => {
+        if (!pendingFile || !password.trim()) return;
+        await handleFile(pendingFile, password.trim());
     };
 
     const handleDrop = (e: React.DragEvent) => {
@@ -87,6 +101,8 @@ export function ImportPDFModal({ isOpen, onClose, categories, onSuccess }: Impor
         setSelected(new Set());
         setError('');
         setFileName('');
+        setPendingFile(null);
+        setPassword('');
         onClose();
     };
 
@@ -157,6 +173,52 @@ export function ImportPDFModal({ isOpen, onClose, categories, onSuccess }: Impor
                                     <li>• Review the detected transactions and deselect any you don't want</li>
                                     <li>• Hit Import to add them all at once</li>
                                 </ul>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Step: Password */}
+                    {step === 'password' && (
+                        <div className="text-center py-4">
+                            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                                style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)' }}>
+                                <svg className="w-7 h-7 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </div>
+                            <p className="text-white font-bold text-base mb-1">Password Protected PDF</p>
+                            <p className="text-slate-400 text-sm mb-1">{fileName}</p>
+                            <p className="text-slate-500 text-xs mb-6">This PDF is encrypted. Enter the password set by your bank.<br />Common formats: <span className="text-slate-400">DDMMYYYY</span> · <span className="text-slate-400">NAME + DOB</span> · <span className="text-slate-400">PAN number</span> · <span className="text-slate-400">Account number</span></p>
+
+                            {error && (
+                                <div className="mb-4 flex items-start gap-2 px-4 py-3 rounded-xl text-sm text-red-300 border border-red-500/30 text-left" style={{ background: 'rgba(239,68,68,0.1)' }}>
+                                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                    {error}
+                                </div>
+                            )}
+
+                            <input
+                                type="password"
+                                className="w-full px-4 py-3 rounded-xl text-white placeholder-slate-500 outline-none border text-sm mb-4"
+                                style={{ background: 'rgba(0,0,0,0.3)', borderColor: 'rgba(255,255,255,0.1)' }}
+                                placeholder="Enter PDF password"
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handlePasswordSubmit()}
+                                autoFocus
+                            />
+
+                            <div className="flex gap-3">
+                                <button onClick={() => { setStep('upload'); setError(''); }}
+                                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-300 border border-white/10 hover:bg-white/5 transition-all">
+                                    Back
+                                </button>
+                                <button onClick={handlePasswordSubmit} disabled={parsing || !password.trim()}
+                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 4px 15px rgba(245,158,11,0.3)' }}>
+                                    {parsing ? <Loader className="w-4 h-4 animate-spin" /> : null}
+                                    {parsing ? 'Unlocking...' : 'Unlock & Parse'}
+                                </button>
                             </div>
                         </div>
                     )}

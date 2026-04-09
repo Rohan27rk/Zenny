@@ -59,9 +59,10 @@ function guessType(line: string): 'income' | 'expense' {
 /**
  * Extract all text from a PDF file using pdfjs-dist.
  */
-async function extractTextFromPDF(file: File): Promise<string[]> {
+async function extractTextFromPDF(file: File, password?: string): Promise<string[]> {
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer, ...(password ? { password } : {}) });
+    const pdf = await loadingTask.promise;
     const lines: string[] = [];
 
     for (let i = 1; i <= pdf.numPages; i++) {
@@ -80,8 +81,8 @@ async function extractTextFromPDF(file: File): Promise<string[]> {
  * Main parser — tries to find rows that look like transactions.
  * Works best with HDFC, SBI, ICICI, Axis, Kotak statement PDFs.
  */
-export async function parseBankStatementPDF(file: File): Promise<ParsedTransaction[]> {
-    const lines = await extractTextFromPDF(file);
+export async function parseBankStatementPDF(file: File, password?: string): Promise<ParsedTransaction[]> {
+    const lines = await extractTextFromPDF(file, password);
     const fullText = lines.join('\n');
 
     const transactions: ParsedTransaction[] = [];
