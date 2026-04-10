@@ -9,6 +9,9 @@ interface Message {
 
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_CHATBOT_KEY || 'AIzaSyD2iola6CILU1mBTII8avNxR1oNHzTthNM';
 
+// Simple in-memory cache to avoid duplicate API calls
+const responseCache = new Map<string, string>();
+
 const SYSTEM_PROMPT = `You are Zenny AI, a friendly and knowledgeable personal finance assistant built into the Zenny app. 
 You help Indian users with:
 - Investment advice (SIPs, mutual funds, stocks, FDs, PPF, NPS)
@@ -32,6 +35,10 @@ const QUICK_QUESTIONS = [
 ];
 
 async function askGemini(messages: Message[]): Promise<string> {
+    // Check cache for the last user message
+    const lastMsg = messages[messages.length - 1]?.text ?? '';
+    const cacheKey = lastMsg.toLowerCase().trim();
+    if (responseCache.has(cacheKey)) return responseCache.get(cacheKey)!;
     // Prepend system prompt as first user/model exchange
     const systemTurn = [
         { role: 'user', parts: [{ text: SYSTEM_PROMPT }] },
@@ -44,7 +51,7 @@ async function askGemini(messages: Message[]): Promise<string> {
     }));
 
     const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`,
         {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -58,10 +65,14 @@ async function askGemini(messages: Message[]): Promise<string> {
     if (!res.ok) {
         const errText = await res.text();
         console.error('Gemini error:', res.status, errText);
+        if (res.status === 429) throw new Error('QUOTA_EXCEEDED');
         throw new Error(`API error ${res.status}: ${errText.slice(0, 100)}`);
     }
     const data = await res.json();
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sorry, I could not get a response. Please try again.';
+    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sorry, I could not get a response. Please try again.';
+    // Cache the response
+    responseCache.set(cacheKey, reply);
+    return reply;
 }
 
 export function AIChatbot() {
@@ -95,7 +106,10 @@ export function AIChatbot() {
             setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
         } catch (e: any) {
             console.error('Chat error:', e);
-            setMessages(prev => [...prev, { role: 'assistant', text: `Sorry, something went wrong: ${e?.message ?? 'Unknown error'}. Please try again.` }]);
+            const msg = e?.message === 'QUOTA_EXCEEDED'
+                ? '⚠️ AI quota limit reached. Please wait a minute and try again. (Free tier: 15 requests/min)'
+                : `Sorry, something went wrong. Please try again.`;
+            setMessages(prev => [...prev, { role: 'assistant', text: msg }]);
         } finally {
             setLoading(false);
         }
