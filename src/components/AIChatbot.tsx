@@ -32,6 +32,12 @@ const QUICK_QUESTIONS = [
 ];
 
 async function askGemini(messages: Message[]): Promise<string> {
+    // Prepend system prompt as first user/model exchange
+    const systemTurn = [
+        { role: 'user', parts: [{ text: SYSTEM_PROMPT }] },
+        { role: 'model', parts: [{ text: 'Understood! I am Zenny AI, your personal finance assistant. How can I help you today?' }] },
+    ];
+
     const history = messages.map(m => ({
         role: m.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: m.text }],
@@ -43,14 +49,17 @@ async function askGemini(messages: Message[]): Promise<string> {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-                contents: history,
+                contents: [...systemTurn, ...history],
                 generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
             }),
         }
     );
 
-    if (!res.ok) throw new Error(`API error ${res.status}`);
+    if (!res.ok) {
+        const errText = await res.text();
+        console.error('Gemini error:', res.status, errText);
+        throw new Error(`API error ${res.status}: ${errText.slice(0, 100)}`);
+    }
     const data = await res.json();
     return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sorry, I could not get a response. Please try again.';
 }
@@ -84,8 +93,9 @@ export function AIChatbot() {
         try {
             const reply = await askGemini(newMessages);
             setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
-        } catch {
-            setMessages(prev => [...prev, { role: 'assistant', text: 'Sorry, something went wrong. Please try again in a moment.' }]);
+        } catch (e: any) {
+            console.error('Chat error:', e);
+            setMessages(prev => [...prev, { role: 'assistant', text: `Sorry, something went wrong: ${e?.message ?? 'Unknown error'}. Please try again.` }]);
         } finally {
             setLoading(false);
         }
@@ -157,8 +167,8 @@ export function AIChatbot() {
                                 </div>
                                 {/* Bubble */}
                                 <div className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed space-y-1 ${msg.role === 'user'
-                                        ? 'text-white rounded-tr-sm'
-                                        : 'text-slate-200 rounded-tl-sm'
+                                    ? 'text-white rounded-tr-sm'
+                                    : 'text-slate-200 rounded-tl-sm'
                                     }`}
                                     style={msg.role === 'user'
                                         ? { background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', boxShadow: '0 4px 12px rgba(59,130,246,0.25)' }
