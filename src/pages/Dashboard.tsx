@@ -16,6 +16,7 @@ import {
   LogOut, Upload, BarChart2, List, User, Menu, X, Home, CreditCard, RefreshCw,
 } from 'lucide-react';
 import { ZennyLogo } from '../components/ZennyLogo';
+import { initNotifications } from '../lib/notifications';
 
 type DashTab = 'home' | 'analytics' | 'transactions' | 'credit-cards' | 'sip' | 'profile';
 interface FinancialStats { totalBalance: number; totalIncome: number; totalExpense: number; }
@@ -64,6 +65,13 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => { if (user) fetchData(); }, [user]);
+
+  // Init notifications after login
+  useEffect(() => {
+    if (user && profile) {
+      initNotifications(profile.full_name?.split(' ')[0]);
+    }
+  }, [user, profile]);
 
   const fetchData = async () => {
     try { await Promise.all([fetchTransactions(), fetchCategories()]); }
