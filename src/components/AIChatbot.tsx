@@ -7,7 +7,7 @@ interface Message {
     text: string;
 }
 
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCZt_BVHT6of3TCq4up3nr3FQJSjU9Oao8';
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_CHATBOT_KEY || 'AIzaSyD2iola6CILU1mBTII8avNxR1oNHzTthNM';
 
 const SYSTEM_PROMPT = `You are Zenny AI, a friendly and knowledgeable personal finance assistant built into the Zenny app. 
 You help Indian users with:
