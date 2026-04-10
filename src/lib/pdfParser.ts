@@ -99,14 +99,14 @@ ${rawText.slice(0, 15000)}`; // Gemini free tier has token limits
     // Validate and clean each transaction
     return parsed
         .filter((t: any) => t.date && t.amount && t.type)
-        .map((t: any) => ({
+        .map((t: any): ParsedTransaction => ({
             date: String(t.date),
             title: String(t.title || 'Bank Transaction').slice(0, 80),
             amount: Math.abs(Number(t.amount)),
             type: t.type === 'income' ? 'income' : 'expense',
             notes: 'Imported via AI',
         }))
-        .filter((t: ParsedTransaction) => t.amount > 0);
+        .filter(t => t.amount > 0);
 }
 
 // ── Regex fallback parser ─────────────────────────────────────────────────────

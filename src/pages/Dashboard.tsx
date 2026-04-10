@@ -10,6 +10,7 @@ import { ProfilePage } from './ProfilePage';
 import { CreditCards } from './CreditCards';
 import { HomePage } from './HomePage';
 import { SIPTracker } from './SIPTracker';
+import { AIChatbot } from '../components/AIChatbot';
 import {
   DollarSign, TrendingUp, TrendingDown, Wallet, Plus,
   LogOut, Upload, BarChart2, List, User, Menu, X, Home, CreditCard, RefreshCw,
@@ -268,6 +269,7 @@ export function Dashboard() {
 
       <AddTransactionModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} categories={categories} onSuccess={handleTransactionAdded} onGoToCards={() => { setIsAddModalOpen(false); navigate('credit-cards'); }} />
       <ImportPDFModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} categories={categories} onSuccess={handleImportSuccess} />
+      <AIChatbot />
     </div>
   );
 }
