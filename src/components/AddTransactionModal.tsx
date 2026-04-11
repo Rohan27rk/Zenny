@@ -2,7 +2,9 @@ import { useState, useEffect, FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import { Category, PaymentMethod, CreditCard } from '../lib/database.types';
 import { useAuth } from '../contexts/AuthContext';
-import { X, TrendingDown, TrendingUp, Plus, CreditCard as CreditCardIcon, AlertTriangle, ExternalLink } from 'lucide-react';
+import { X, TrendingDown, TrendingUp, ArrowDownCircle, Plus, CreditCard as CreditCardIcon, AlertTriangle, ExternalLink } from 'lucide-react';
+
+type TxType = 'income' | 'expense' | 'received';
 
 interface AddTransactionModalProps {
   isOpen: boolean;
@@ -26,7 +28,7 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string; emoji: string }[] 
 export function AddTransactionModal({ isOpen, onClose, categories, onSuccess, onGoToCards }: AddTransactionModalProps) {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
-    title: '', amount: '', type: 'expense' as 'income' | 'expense',
+    title: '', amount: '', type: 'expense' as TxType,
     categoryId: '', date: new Date().toISOString().split('T')[0],
     notes: '', payment_method: 'upi' as PaymentMethod,
     credit_card_id: '',
@@ -135,19 +137,30 @@ export function AddTransactionModal({ isOpen, onClose, categories, onSuccess, on
               </div>
             )}
 
-            {/* Type toggle */}
-            <div className="flex gap-2 p-1 rounded-xl" style={{ background: 'rgba(0,0,0,0.3)' }}>
-              {(['expense', 'income'] as const).map(t => (
-                <button key={t} type="button" onClick={() => setFormData({ ...formData, type: t, categoryId: '' })}
-                  className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
-                  style={formData.type === t
-                    ? { background: t === 'expense' ? 'linear-gradient(135deg, #ef4444, #b91c1c)' : 'linear-gradient(135deg, #22c55e, #15803d)', color: 'white', boxShadow: t === 'expense' ? '0 4px 12px rgba(239,68,68,0.3)' : '0 4px 12px rgba(34,197,94,0.3)' }
+            {/* Type toggle — 3 types */}
+            <div className="flex gap-1.5 p-1 rounded-xl" style={{ background: 'rgba(0,0,0,0.3)' }}>
+              {([
+                { type: 'expense', label: 'Expense', icon: <TrendingDown className="w-3.5 h-3.5" />, color: '#ef4444', grad: 'linear-gradient(135deg, #ef4444, #b91c1c)', shadow: 'rgba(239,68,68,0.3)' },
+                { type: 'income', label: 'Salary', icon: <TrendingUp className="w-3.5 h-3.5" />, color: '#22c55e', grad: 'linear-gradient(135deg, #22c55e, #15803d)', shadow: 'rgba(34,197,94,0.3)' },
+                { type: 'received', label: 'Received', icon: <ArrowDownCircle className="w-3.5 h-3.5" />, color: '#06b6d4', grad: 'linear-gradient(135deg, #06b6d4, #0284c7)', shadow: 'rgba(6,182,212,0.3)' },
+              ] as const).map(t => (
+                <button key={t.type} type="button"
+                  onClick={() => setFormData({ ...formData, type: t.type, categoryId: '' })}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all duration-200"
+                  style={formData.type === t.type
+                    ? { background: t.grad, color: 'white', boxShadow: `0 4px 12px ${t.shadow}` }
                     : { color: 'rgba(255,255,255,0.4)' }}>
-                  {t === 'expense' ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t.icon}{t.label}
                 </button>
               ))}
             </div>
+
+            {/* Helper text for received */}
+            {formData.type === 'received' && (
+              <div className="px-3 py-2 rounded-xl text-xs text-cyan-300 border border-cyan-500/20" style={{ background: 'rgba(6,182,212,0.08)' }}>
+                💡 Use this for money returned by friends/family, refunds, cashback — it adds to your balance but is NOT counted as salary/income.
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">

@@ -96,6 +96,9 @@ export type Category = Database['public']['Tables']['categories']['Row'];
 export type Transaction = Database['public']['Tables']['transactions']['Row'];
 export type TransactionWithCategory = Transaction & { categories: Category };
 
+// Extended transaction type to support 'received' (money returned/refunds - not salary)
+export type TransactionType = 'income' | 'expense' | 'received';
+
 export interface Profile {
   id: string;
   full_name: string | null;

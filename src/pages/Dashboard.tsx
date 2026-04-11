@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { ZennyLogo } from '../components/ZennyLogo';
 import { initNotifications } from '../lib/notifications';
+import { exportTransactionsPDF } from '../lib/exportPDF';
 
 type DashTab = 'home' | 'analytics' | 'transactions' | 'credit-cards' | 'sip' | 'profile';
 interface FinancialStats { totalBalance: number; totalIncome: number; totalExpense: number; }
@@ -94,7 +95,10 @@ export function Dashboard() {
   const calculateStats = (txns: Transaction[]) => {
     const income = txns.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
     const expense = txns.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
-    setStats({ totalIncome: income, totalExpense: expense, totalBalance: income - expense });
+    const received = txns.filter(t => t.type === 'received').reduce((s, t) => s + Number(t.amount), 0);
+    // Net balance = income + received - expense
+    // Total income shown in analytics = salary/income only (not received)
+    setStats({ totalIncome: income, totalExpense: expense, totalBalance: income + received - expense });
   };
 
   const handleTransactionAdded = () => { fetchTransactions(); setIsAddModalOpen(false); };
@@ -219,15 +223,19 @@ export function Dashboard() {
                 <h2 className="text-xl font-bold text-white">Analytics</h2>
                 <p className="text-slate-500 text-sm mt-0.5">Your financial overview</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <StatCard label="Net Balance" value={formatCurrency(stats.totalBalance)}
                   valueColor={stats.totalBalance >= 0 ? '#22c55e' : '#ef4444'}
                   glowColor="rgba(59,130,246,0.15)" icon={<Wallet className="w-5 h-5" />}
                   iconBg="linear-gradient(135deg, #3b82f6, #1d4ed8)" iconGlow="rgba(59,130,246,0.5)" sub={`${transactions.length} transactions`} />
-                <StatCard label="Total Income" value={formatCurrency(stats.totalIncome)}
+                <StatCard label="Salary / Income" value={formatCurrency(stats.totalIncome)}
                   valueColor="#22c55e" glowColor="rgba(34,197,94,0.1)"
                   icon={<TrendingUp className="w-5 h-5" />}
-                  iconBg="linear-gradient(135deg, #22c55e, #15803d)" iconGlow="rgba(34,197,94,0.5)" sub="All time" />
+                  iconBg="linear-gradient(135deg, #22c55e, #15803d)" iconGlow="rgba(34,197,94,0.5)" sub="Earnings only" />
+                <StatCard label="Money Received" value={formatCurrency(transactions.filter(t => t.type === 'received').reduce((s, t) => s + Number(t.amount), 0))}
+                  valueColor="#06b6d4" glowColor="rgba(6,182,212,0.1)"
+                  icon={<TrendingUp className="w-5 h-5" />}
+                  iconBg="linear-gradient(135deg, #06b6d4, #0284c7)" iconGlow="rgba(6,182,212,0.5)" sub="Returns & refunds" />
                 <StatCard label="Total Expenses" value={formatCurrency(stats.totalExpense)}
                   valueColor="#ef4444" glowColor="rgba(239,68,68,0.1)"
                   icon={<TrendingDown className="w-5 h-5" />}
@@ -252,6 +260,10 @@ export function Dashboard() {
                   <button onClick={() => setIsImportOpen(true)}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 border border-white/10 hover:bg-white/5 transition-all duration-200">
                     <Upload className="w-3.5 h-3.5" /> Import PDF
+                  </button>
+                  <button onClick={() => exportTransactionsPDF(transactions, profile?.full_name ?? 'User', profile?.currency)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 border border-white/10 hover:bg-white/5 transition-all duration-200">
+                    <Upload className="w-3.5 h-3.5 rotate-180" /> Export PDF
                   </button>
                   <button onClick={() => setIsAddModalOpen(true)}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-all duration-200 hover:-translate-y-0.5"
