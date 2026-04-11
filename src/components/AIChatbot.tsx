@@ -7,7 +7,9 @@ interface Message {
     text: string;
 }
 
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_CHATBOT_KEY || 'AIzaSyD2iola6CILU1mBTII8avNxR1oNHzTthNM';
+const GEMINI_KEY = import.meta.env.VITE_AI_KEY || 'ae877337ec056081475e697b865c10b2';
+const AI_BASE = 'https://api.aimlapi.com/v1';
+const AI_MODEL = 'mistralai/Mistral-7B-Instruct-v0.2';
 
 // Simple in-memory cache to avoid duplicate API calls
 const responseCache = new Map<string, string>();
@@ -85,37 +87,35 @@ async function askGemini(messages: Message[]): Promise<string> {
     const lastMsg = messages[messages.length - 1]?.text ?? '';
     const cacheKey = lastMsg.toLowerCase().trim();
     if (responseCache.has(cacheKey)) return responseCache.get(cacheKey)!;
-    // Prepend system prompt as first user/model exchange
-    const systemTurn = [
-        { role: 'user', parts: [{ text: SYSTEM_PROMPT }] },
-        { role: 'model', parts: [{ text: 'Understood! I am Zenny AI, your personal finance assistant. How can I help you today?' }] },
-    ];
-
-    const history = messages.map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.text }],
-    }));
 
     const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`,
+        `${AI_BASE}/chat/completions`,
         {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${GEMINI_KEY}`,
+            },
             body: JSON.stringify({
-                contents: [...systemTurn, ...history],
-                generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+                model: AI_MODEL,
+                messages: [
+                    { role: 'system', content: SYSTEM_PROMPT },
+                    ...messages.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.text })),
+                ],
+                max_tokens: 512,
+                temperature: 0.7,
             }),
         }
     );
 
     if (!res.ok) {
         const errText = await res.text();
-        console.error('Gemini error:', res.status, errText);
+        console.error('AI API error:', res.status, errText);
         if (res.status === 429) throw new Error('QUOTA_EXCEEDED');
         throw new Error(`API error ${res.status}: ${errText.slice(0, 100)}`);
     }
     const data = await res.json();
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sorry, I could not get a response. Please try again.';
+    const reply = data?.choices?.[0]?.message?.content ?? 'Sorry, I could not get a response. Please try again.';
     // Cache the response
     responseCache.set(cacheKey, reply);
     return reply;
